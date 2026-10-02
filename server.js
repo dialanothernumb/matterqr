@@ -235,7 +235,29 @@ app.get('/oauth/google/callback', async (req, res) => {
 });
 
 app.use('/photos', express.static(PHOTOS_DIR, { maxAge: '30d' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// Home-screen icons are embedded as data: URIs in the page and manifest.
+// Phones fetch icon URLs without the session cookie when you "Add to Home
+// Screen", so behind an auth proxy a plain /icons/... URL gets redirected to
+// the login page and the phone falls back to a letter icon.
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const iconDataUri = (file) => `data:image/png;base64,${fs.readFileSync(path.join(PUBLIC_DIR, 'icons', file)).toString('base64')}`;
+const indexHtml = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
+  .replace('href="/icons/apple-touch-icon.png"', `href="${iconDataUri('apple-touch-icon.png')}"`);
+const manifest = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.webmanifest'), 'utf8'));
+manifest.icons = manifest.icons.map((icon) => (
+  icon.src.startsWith('/icons/') && icon.src.endsWith('.png')
+    ? { ...icon, src: iconDataUri(path.basename(icon.src)) }
+    : icon
+));
+const manifestJson = JSON.stringify(manifest);
+
+app.get(['/', '/index.html'], (req, res) => {
+  res.set('Cache-Control', 'no-cache').type('html').send(indexHtml);
+});
+app.get('/manifest.webmanifest', (req, res) => {
+  res.set('Cache-Control', 'no-cache').type('application/manifest+json').send(manifestJson);
+});
+app.use(express.static(PUBLIC_DIR));
 
 app.listen(PORT, () => {
   console.log(`matterqr listening on :${PORT}, data dir ${DATA_DIR}`);
