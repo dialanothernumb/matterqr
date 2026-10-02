@@ -200,19 +200,57 @@
   zoomInBtn.addEventListener('click', () => adjustZoom(zoomCaps ? zoomCaps.step * 2 : 0));
   zoomOutBtn.addEventListener('click', () => adjustZoom(zoomCaps ? -zoomCaps.step * 2 : 0));
 
+  // iOS Safari exposes each physical lens as its own camera, and the default
+  // "Back Camera" is the main wide lens — which on recent iPhones can't
+  // focus closer than ~15-20cm, too far for a small, dense Matter QR. The
+  // virtual "Triple"/"Dual Wide" devices are what the native Camera/Home apps
+  // use: they auto-switch to the ultra-wide (macro) lens when you get close.
+  const PREFERRED_BACK_CAMERA = [/triple/i, /dual wide/i, /dual/i];
+
+  async function pickBackCameraId(currentTrack) {
+    if (!navigator.mediaDevices.enumerateDevices) return null;
+    let devices;
+    try {
+      devices = (await navigator.mediaDevices.enumerateDevices())
+        .filter((d) => d.kind === 'videoinput' && d.label);
+    } catch (err) {
+      return null;
+    }
+    for (const pattern of PREFERRED_BACK_CAMERA) {
+      const match = devices.find((d) => pattern.test(d.label));
+      if (match) return match.deviceId === currentTrack.getSettings().deviceId ? null : match.deviceId;
+    }
+    return null;
+  }
+
+  function openCamera(deviceId) {
+    return navigator.mediaDevices.getUserMedia({
+      video: {
+        ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } }),
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+  }
+
   async function startScan() {
     fQr.value = '';
     cameraWrap.classList.remove('hidden');
     scanBtn.classList.add('hidden');
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
+      stream = await openCamera(null);
+      // Device labels are only readable once permission is granted, so the
+      // better lens can only be chosen after this first open.
+      const betterId = await pickBackCameraId(stream.getVideoTracks()[0]);
+      if (betterId) {
+        stream.getTracks().forEach((t) => t.stop());
+        try {
+          stream = await openCamera(betterId);
+        } catch (err) {
+          stream = await openCamera(null);
+        }
+      }
       video.srcObject = stream;
       await video.play();
 
@@ -221,6 +259,8 @@
 
       if (await detectorSupportsQr()) {
         scanWithBarcodeDetector();
+      } else if (await zxingReady()) {
+        scanWithZXing();
       } else {
         scanWithJsQR();
       }
@@ -248,13 +288,87 @@
         consecutiveErrors += 1;
         if (consecutiveErrors > 5) {
           // Detector claimed support but isn't actually working — fall back.
-          scanWithJsQR();
+          if (await zxingReady()) scanWithZXing();
+          else scanWithJsQR();
           return;
         }
       }
       scanRAF = requestAnimationFrame(loop);
     };
     scanRAF = requestAnimationFrame(loop);
+  }
+
+  // ZXing-C++ compiled to WebAssembly (vendored, served from /vendor) — the
+  // decoder used when there's no native BarcodeDetector, i.e. iOS Safari.
+  // Much more tolerant of blur, glare, low contrast and perspective than
+  // jsQR, which stays only as a last resort if the .wasm fails to load.
+  let zxingReadyPromise = null;
+  function zxingReady() {
+    if (!zxingReadyPromise) {
+      zxingReadyPromise = (async () => {
+        if (!window.ZXingWASM) return false;
+        try {
+          await ZXingWASM.prepareZXingModule({
+            overrides: {
+              locateFile: (file, prefix) => (file.endsWith('.wasm') ? `/vendor/${file}` : prefix + file),
+            },
+            fireImmediately: true,
+          });
+          return true;
+        } catch (err) {
+          return false;
+        }
+      })();
+    }
+    return zxingReadyPromise;
+  }
+
+  const ZXING_FULL_FRAME_MAX = 1280;
+  const ZXING_OPTIONS = { formats: ['QRCode'], maxNumberOfSymbols: 1, tryHarder: true };
+
+  // Alternates two views per frame: the reticle crop at native resolution
+  // (keeps every pixel for a small code held at the lens's focus limit) and
+  // the whole frame downscaled (catches a code that isn't neatly centred).
+  function scanWithZXing() {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ownStream = stream; // so an in-flight decode can't outlive a stop/restart
+    let cropNext = true;
+    const tick = async () => {
+      if (stream !== ownStream) return;
+      if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth) {
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        let sx = 0;
+        let sy = 0;
+        let sw = vw;
+        let sh = vh;
+        let scale = Math.min(1, ZXING_FULL_FRAME_MAX / Math.max(vw, vh));
+        if (cropNext) {
+          sw = sh = Math.floor(Math.min(vw, vh) * RETICLE_FRACTION);
+          sx = Math.floor((vw - sw) / 2);
+          sy = Math.floor((vh - sh) / 2);
+          scale = 1;
+        }
+        cropNext = !cropNext;
+        const ow = Math.round(sw * scale);
+        const oh = Math.round(sh * scale);
+        canvas.width = ow;
+        canvas.height = oh;
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, ow, oh);
+        try {
+          const results = await ZXingWASM.readBarcodes(ctx.getImageData(0, 0, ow, oh), ZXING_OPTIONS);
+          const hit = results.find((r) => r.isValid && r.text);
+          if (hit && stream === ownStream) {
+            onScanned(hit.text);
+            return;
+          }
+        } catch (err) {
+          // A bad frame — just try the next one.
+        }
+      }
+      if (stream === ownStream) scanRAF = requestAnimationFrame(tick);
+    };
+    scanRAF = requestAnimationFrame(tick);
   }
 
   // Fallback JS decoder: crop to the centered reticle square (matches what's
@@ -278,9 +392,15 @@
         ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, outSize, outSize);
         const imageData = ctx.getImageData(0, 0, outSize, outSize);
         invertNext = !invertNext;
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: invertNext ? 'onlyInvert' : 'dontInvert',
-        });
+        let code = null;
+        try {
+          code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: invertNext ? 'onlyInvert' : 'dontInvert',
+          });
+        } catch (err) {
+          // jsQR throws on some noisy frames instead of returning null — an
+          // uncaught throw here would silently kill the scan loop.
+        }
         if (code && code.data) {
           onScanned(code.data);
           return;

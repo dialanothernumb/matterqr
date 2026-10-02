@@ -1,10 +1,13 @@
-# --- build stage: compile native deps (better-sqlite3) and fetch the client-side QR decoder ---
+# --- build stage: compile native deps (better-sqlite3) and fetch the client-side QR decoders ---
 FROM node:20-alpine AS build
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci --omit=dev \
- && cp node_modules/jsqr/dist/jsQR.js /tmp/jsQR.js
+ && mkdir -p /tmp/vendor \
+ && cp node_modules/jsqr/dist/jsQR.js /tmp/vendor/jsQR.js \
+ && cp node_modules/zxing-wasm/dist/iife/reader/index.js /tmp/vendor/zxing-reader.js \
+ && cp node_modules/zxing-wasm/dist/reader/zxing_reader.wasm /tmp/vendor/zxing_reader.wasm
 
 # --- runtime stage ---
 FROM node:20-alpine
@@ -20,7 +23,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY package*.json ./
 COPY server.js gdrive.js ./
 COPY public ./public
-COPY --from=build /tmp/jsQR.js ./public/vendor/jsQR.js
+COPY --from=build /tmp/vendor/ ./public/vendor/
 
 RUN mkdir -p /app/data/photos
 
