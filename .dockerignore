@@ -5,3 +5,4 @@ data
 *.md
 docker-compose*.yml
 .env
+docs

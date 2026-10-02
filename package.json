@@ -1,6 +1,6 @@
 {
   "name": "matterqr",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Scan, store and re-display Matter smart-home device pairing QR codes from your phone",
   "main": "server.js",

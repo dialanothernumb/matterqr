@@ -108,6 +108,7 @@ main {
   border: 1px solid var(--card-border);
   border-radius: 10px;
 }
+.pairing-entry .p-code,
 .pairing-entry .p-notes { grid-column: 1 / -1; }
 .pairing-entry .p-remove { grid-column: 1 / -1; justify-self: end; }
 .systems { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
@@ -191,6 +192,7 @@ main {
 .field input[type="text"],
 .field input[type="date"],
 .field input[type="search"],
+#filter-input,
 .field textarea,
 .field input[type="file"],
 .field select {

@@ -30,6 +30,16 @@ through the bin for the box when you need to re-pair it later.
 - **Add to Home Screen** with a proper app icon on iPhone and Android.
 - Single container, SQLite storage, and no external services needed at runtime.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/devices-dark.png" alt="Saved devices list in dark mode, showing rooms and the systems each device is paired with" width="250">
+  <img src="docs/screenshots/paired-with-light.png" alt="Editing a device in light mode, with its Paired with list of smart-home systems" width="250">
+  <img src="docs/screenshots/show-qr-dark.png" alt="A saved device's QR code re-displayed for pairing" width="250">
+</p>
+
+<p align="center"><sub>Saved devices · Paired with · Re-displayed QR code. All devices and codes shown are sample data.</sub></p>
+
 ## ⚠️ Security: read this first
 
 **MatterQR has no login of its own.** Anyone who can reach it can read, edit
