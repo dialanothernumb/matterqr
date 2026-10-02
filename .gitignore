@@ -1,0 +1,8 @@
+node_modules/
+data/
+.env
+*.db
+*.db-shm
+*.db-wal
+gdrive_token.json
+public/vendor/

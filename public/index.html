@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Matter QR Vault</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>🏠 Matter QR Vault</h1>
+  <p class="subtitle">Scan a device's pairing QR code and file it under a name &amp; room.</p>
+</header>
+
+<main>
+  <section id="backup-section" class="card backup-card">
+    <div class="backup-row">
+      <div>
+        <h2>☁️ Google Drive backup</h2>
+        <p id="backup-status" class="backup-status">Checking connection…</p>
+      </div>
+      <div class="backup-actions">
+        <a id="backup-connect-link" href="/oauth/google/start" class="btn ghost small hidden">Connect Google Drive</a>
+        <button id="backup-now-btn" class="btn ghost small hidden">Backup now</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scan-section" class="card">
+    <div class="scan-options">
+      <button id="scan-btn" class="btn primary">📷 Scan QR Code</button>
+      <button id="manual-btn" class="btn ghost">🔢 Enter code manually</button>
+    </div>
+    <div id="camera-wrap" class="hidden">
+      <div class="camera-viewport">
+        <video id="camera" playsinline muted></video>
+        <div id="scan-reticle" class="reticle"></div>
+      </div>
+      <canvas id="camera-canvas" class="hidden"></canvas>
+      <p class="scan-hint">Fill the box with the QR code and hold steady — move closer if it's small.</p>
+      <div class="camera-tools">
+        <button id="torch-btn" class="btn ghost small hidden">🔦 Torch</button>
+        <button id="zoom-out-btn" class="btn ghost small hidden">－</button>
+        <button id="zoom-in-btn" class="btn ghost small hidden">＋ Zoom</button>
+      </div>
+      <button id="cancel-scan-btn" class="btn ghost full">Cancel</button>
+    </div>
+  </section>
+
+  <section id="form-section" class="card hidden">
+    <h2 id="form-title">New device</h2>
+    <p id="autosave-status" class="autosave-status hidden">Saved automatically — you can keep editing, or close this safely.</p>
+    <div class="field" id="qr-field">
+      <label>QR content</label>
+      <textarea id="f-qr" rows="2" readonly></textarea>
+    </div>
+    <div class="field">
+      <label for="f-code">Manual pairing code</label>
+      <input id="f-code" type="text" inputmode="numeric" placeholder="e.g. 3496-012-3456 (printed below the QR code)">
+    </div>
+    <div class="field">
+      <label for="f-name-select">Device name</label>
+      <select id="f-name-select"></select>
+      <input id="f-name" type="text" class="hidden" placeholder="Type a new device name">
+      <button type="button" id="f-name-back" class="btn ghost small hidden">↩ Choose existing</button>
+    </div>
+    <div class="field">
+      <label for="f-details-select">Device details</label>
+      <select id="f-details-select"></select>
+      <input id="f-details" type="text" class="hidden" placeholder="Type new device details">
+      <button type="button" id="f-details-back" class="btn ghost small hidden">↩ Choose existing</button>
+    </div>
+    <div class="field">
+      <label for="f-room-select">Room</label>
+      <select id="f-room-select"></select>
+      <input id="f-room" type="text" class="hidden" placeholder="Type a new room">
+      <button type="button" id="f-room-back" class="btn ghost small hidden">↩ Choose existing</button>
+    </div>
+    <div class="field">
+      <label for="f-notes">Notes (optional)</label>
+      <textarea id="f-notes" rows="2" placeholder="Purchase date, MAC address, mounting notes..."></textarea>
+    </div>
+    <div class="field">
+      <label for="f-photo">Photo of device / box (optional)</label>
+      <input id="f-photo" type="file" accept="image/*" capture="environment">
+      <img id="f-photo-preview" class="photo-preview hidden">
+      <button id="f-photo-remove" type="button" class="btn ghost small hidden">Remove photo</button>
+    </div>
+    <div class="actions">
+      <button id="save-btn" class="btn primary">Save</button>
+      <button id="cancel-form-btn" class="btn ghost">Cancel</button>
+    </div>
+    <div class="danger-zone">
+      <button id="delete-btn" class="btn danger small hidden">🗑️ Delete this device</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Saved devices <span id="count-badge" class="badge">0</span></h2>
+    <input id="filter-input" type="search" placeholder="Filter by name, room or notes...">
+    <div class="print-controls">
+      <select id="print-room-select">
+        <option value="">Print: all rooms</option>
+      </select>
+      <button id="print-btn" class="btn ghost small">🖨️ Print</button>
+    </div>
+    <div id="device-list" class="device-list"></div>
+    <p id="empty-state" class="empty hidden">No devices saved yet — scan one above to get started.</p>
+  </section>
+</main>
+
+<div id="print-area"></div>
+
+<div id="qr-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3 id="qr-modal-title"></h3>
+    <img id="qr-modal-img" alt="Regenerated QR code">
+    <p class="modal-hint">Point another phone's camera at this to re-pair, or press-and-hold to save it.</p>
+    <button id="qr-modal-close" class="btn ghost">Close</button>
+  </div>
+</div>
+
+<script src="/vendor/jsQR.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

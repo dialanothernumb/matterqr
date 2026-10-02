@@ -1,0 +1,20 @@
+services:
+  matterqr:
+    image: ghcr.io/dialanothernumb/matterqr:latest
+    container_name: matterqr
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    # Optional: Google Drive backup. Leave these out and the backup card is hidden.
+    # environment:
+    #   - GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+    #   - GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret
+    #   - GOOGLE_OAUTH_REDIRECT_URI=https://matterqr.example.com/oauth/google/callback
+    # secrets:
+    #   - google_client_secret
+
+# secrets:
+#   google_client_secret:
+#     file: ./google_client_secret.txt

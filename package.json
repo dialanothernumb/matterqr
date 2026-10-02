@@ -1,0 +1,26 @@
+{
+  "name": "matterqr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scan, store and re-display Matter smart-home device pairing QR codes from your phone",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2",
+    "googleapis": "^144.0.0",
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dialanothernumb/matterqr.git"
+  }
+}
