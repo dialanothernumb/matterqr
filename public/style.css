@@ -10,8 +10,12 @@
   --radius: 14px;
 }
 
+/* Theme: dark by default; light follows the OS unless the user picked one
+   (theme.js sets data-theme="light"|"dark" on <html>; "auto" removes it). */
+:root { color-scheme: dark; }
+
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #f4f6fb;
     --card: #ffffff;
     --card-border: #e2e6f0;
@@ -19,7 +23,19 @@
     --text-dim: #5b6478;
     --accent: #3562ea;
     --accent-text: #ffffff;
+    color-scheme: light;
   }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --card-border: #e2e6f0;
+  --text: #1a2233;
+  --text-dim: #5b6478;
+  --accent: #3562ea;
+  --accent-text: #ffffff;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -38,6 +54,29 @@ header {
   margin: 0 auto;
 }
 header h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
+header h1.brand { display: flex; align-items: center; gap: 0.6rem; }
+header h1.brand img { width: 2.25rem; height: 2.25rem; flex: none; border-radius: 0.5rem; }
+.header-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+
+.theme-switch {
+  display: inline-flex;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 2px;
+}
+.theme-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.theme-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.theme-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .subtitle { margin: 0; color: var(--text-dim); font-size: 0.9rem; }
 
 main {
@@ -57,6 +96,28 @@ main {
 }
 
 .hidden { display: none !important; }
+
+.field-hint { margin: 0 0 0.5rem; color: var(--text-dim); font-size: 0.8rem; line-height: 1.4; }
+.pairings-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.5rem; }
+.pairings-list:empty { display: none; }
+.pairing-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+}
+.pairing-entry .p-notes { grid-column: 1 / -1; }
+.pairing-entry .p-remove { grid-column: 1 / -1; justify-self: end; }
+.systems { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+.system-chip {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
+}
 
 .btn {
   border: none;
@@ -128,6 +189,7 @@ main {
   margin-bottom: 0.3rem;
 }
 .field input[type="text"],
+.field input[type="date"],
 .field input[type="search"],
 .field textarea,
 .field input[type="file"],

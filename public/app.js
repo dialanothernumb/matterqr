@@ -29,6 +29,9 @@
   const fRoomSelect = document.getElementById('f-room-select');
   const fRoomBack = document.getElementById('f-room-back');
   const fNotes = document.getElementById('f-notes');
+  const pairingsList = document.getElementById('pairings-list');
+  const addPairingBtn = document.getElementById('add-pairing-btn');
+  const systemOptions = document.getElementById('system-options');
   const fPhoto = document.getElementById('f-photo');
   const fPhotoPreview = document.getElementById('f-photo-preview');
   const fPhotoRemove = document.getElementById('f-photo-remove');
@@ -41,6 +44,7 @@
   const qrModalImg = document.getElementById('qr-modal-img');
   const qrModalClose = document.getElementById('qr-modal-close');
 
+  const themeButtons = document.querySelectorAll('[data-theme-mode]');
   const deviceList = document.getElementById('device-list');
   const emptyState = document.getElementById('empty-state');
   const countBadge = document.getElementById('count-badge');
@@ -327,6 +331,73 @@
   cancelScanBtn.addEventListener('click', stopScan);
   manualBtn.addEventListener('click', () => openForm({}, { manual: true }));
 
+  // ---------- Theme ----------
+
+  function syncThemeButtons() {
+    const mode = window.matterqrTheme ? window.matterqrTheme.get() : 'auto';
+    themeButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeMode === mode)));
+  }
+  themeButtons.forEach((b) => b.addEventListener('click', () => {
+    if (window.matterqrTheme) window.matterqrTheme.set(b.dataset.themeMode);
+    syncThemeButtons();
+  }));
+  syncThemeButtons();
+
+  // ---------- Paired with ----------
+
+  const BUILTIN_SYSTEMS = [
+    'Apple Home', 'Google Home', 'Amazon Alexa', 'SmartThings', 'Home Assistant',
+    'IKEA Home smart', 'Aqara Home', 'Philips Hue', 'Homey', 'Hubitat',
+  ];
+
+  function systemNames() {
+    const used = allDevices.flatMap((d) => (d.pairings || []).map((p) => p.system));
+    return [...new Set([...BUILTIN_SYSTEMS, ...used].filter(Boolean))].sort();
+  }
+
+  function todayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function addPairingRow(p) {
+    const row = document.createElement('div');
+    row.className = 'pairing-entry';
+    row.innerHTML = `
+      <input class="p-system" type="text" list="system-options" placeholder="System, e.g. Apple Home" aria-label="System">
+      <input class="p-date" type="date" aria-label="Date added">
+      <input class="p-code" type="text" placeholder="Code (optional)" aria-label="Code">
+      <input class="p-notes" type="text" placeholder="Notes (optional)" aria-label="Notes">
+      <button type="button" class="btn ghost small p-remove">Remove</button>
+    `;
+    row.querySelector('.p-system').value = p.system || '';
+    row.querySelector('.p-date').value = p.date || '';
+    row.querySelector('.p-code').value = p.code || '';
+    row.querySelector('.p-notes').value = p.notes || '';
+    row.querySelector('.p-remove').addEventListener('click', () => row.remove());
+    pairingsList.appendChild(row);
+    return row;
+  }
+
+  function setPairings(pairings) {
+    systemOptions.innerHTML = systemNames().map((n) => `<option value="${escapeHtml(n)}"></option>`).join('');
+    pairingsList.innerHTML = '';
+    (pairings || []).forEach(addPairingRow);
+  }
+
+  function readPairings() {
+    return [...pairingsList.querySelectorAll('.pairing-entry')].map((row) => ({
+      system: row.querySelector('.p-system').value.trim(),
+      date: row.querySelector('.p-date').value,
+      code: row.querySelector('.p-code').value.trim(),
+      notes: row.querySelector('.p-notes').value.trim(),
+    })).filter((p) => p.system);
+  }
+
+  addPairingBtn.addEventListener('click', () => {
+    addPairingRow({ date: todayIso() }).querySelector('.p-system').focus();
+  });
+
   // ---------- Form ----------
 
   // Strict dropdown + "add new" pattern shared by Device name/details/Room:
@@ -401,6 +472,7 @@
       deviceDetails: fDetails.value.trim(),
       room: fRoom.value.trim(),
       notes: fNotes.value.trim(),
+      pairings: readPairings(),
     };
     if (pendingPhotoDataUrl) payload.photoDataUrl = pendingPhotoDataUrl;
     if (photoRemoved) payload.removePhoto = true;
@@ -446,6 +518,7 @@
     detailsField.refresh('');
     roomField.refresh('');
     fNotes.value = '';
+    setPairings([]);
     fPhoto.value = '';
     fPhotoPreview.classList.add('hidden');
     fPhotoPreview.src = '';
@@ -472,6 +545,7 @@
     detailsField.refresh(device.deviceDetails || '');
     roomField.refresh(device.room || '');
     fNotes.value = device.notes || '';
+    setPairings(device.pairings);
     if (device.photoUrl) {
       fPhotoPreview.src = device.photoUrl;
       fPhotoPreview.classList.remove('hidden');
@@ -628,7 +702,8 @@
     const q = filterInput.value.trim().toLowerCase();
     const filtered = allDevices.filter((d) => {
       if (!q) return true;
-      return [d.deviceName, d.room, d.notes].some((f) => (f || '').toLowerCase().includes(q));
+      const systems = (d.pairings || []).map((p) => p.system);
+      return [d.deviceName, d.room, d.notes, ...systems].some((f) => (f || '').toLowerCase().includes(q));
     });
 
     countBadge.textContent = allDevices.length;
@@ -648,6 +723,7 @@
           ${d.room ? `<div class="room">${escapeHtml(d.room)}</div>` : ''}
           ${d.notes ? `<div class="notes">${escapeHtml(d.notes)}</div>` : ''}
           ${d.manualPairingCode ? `<div class="code">Code: ${escapeHtml(d.manualPairingCode)}</div>` : ''}
+          ${(d.pairings || []).length ? `<div class="systems">${d.pairings.map((p) => `<span class="system-chip">${escapeHtml(p.system)}</span>`).join('')}</div>` : ''}
           ${d.qrContent ? `<div class="qr">${escapeHtml(d.qrContent)}</div>` : ''}
         </div>
         <div class="row-actions">
@@ -721,6 +797,7 @@
                 <div class="print-name">${escapeHtml(d.deviceName)}</div>
                 ${d.deviceDetails ? `<div class="print-details">${escapeHtml(d.deviceDetails)}</div>` : ''}
                 ${d.notes ? `<div class="print-notes">${escapeHtml(d.notes)}</div>` : ''}
+                ${(d.pairings || []).length ? `<div class="print-notes">Paired with: ${d.pairings.map((p) => escapeHtml(p.code ? `${p.system} (${p.code})` : p.system)).join(', ')}</div>` : ''}
               </div>
             </div>
           `;

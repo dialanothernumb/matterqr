@@ -1,3 +1,5 @@
+<p align="center"><img src="public/icons/icon-512.png" alt="MatterQR icon" width="112" height="112"></p>
+
 # MatterQR
 
 A small self-hosted web app for keeping track of your **Matter smart-home
@@ -21,6 +23,11 @@ through the bin for the box when you need to re-pair it later.
 - **Optional Google Drive backup**: zips the database and photos into a
   `MatterQR Backups` folder (keeps the last 20) whenever a device is added,
   plus a "Backup now" button.
+- **Paired with**: record which smart-home systems (Apple Home, Google Home,
+  Home Assistant, IKEA Home smart, etc.) each device has been added to, with
+  dates and any permanent codes. Searchable and included in printouts.
+- **Light, dark or auto** theme, remembered per browser.
+- **Add to Home Screen** with a proper app icon on iPhone and Android.
 - Single container, SQLite storage, and no external services needed at runtime.
 
 ## ⚠️ Security: read this first

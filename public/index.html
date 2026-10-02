@@ -3,13 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Matter QR Vault</title>
+<title>MatterQR</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="MatterQR">
+<meta name="theme-color" content="#0f1420">
+<script src="/theme.js"></script>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
-  <h1>🏠 Matter QR Vault</h1>
+  <div class="header-top">
+    <h1 class="brand"><img src="/favicon.svg" alt="" width="36" height="36">MatterQR</h1>
+    <div class="theme-switch" role="group" aria-label="Colour theme">
+      <button type="button" data-theme-mode="auto">Auto</button>
+      <button type="button" data-theme-mode="light">Light</button>
+      <button type="button" data-theme-mode="dark">Dark</button>
+    </div>
+  </div>
   <p class="subtitle">Scan a device's pairing QR code and file it under a name &amp; room.</p>
 </header>
 
@@ -82,6 +95,13 @@
       <textarea id="f-notes" rows="2" placeholder="Purchase date, MAC address, mounting notes..."></textarea>
     </div>
     <div class="field">
+      <label id="pairings-label">Paired with (optional)</label>
+      <p class="field-hint">Smart-home systems this device has been added to. A share code from one system to another expires after about 15 minutes, so a code here is only worth keeping if it's permanent (e.g. a bridge's HomeKit code).</p>
+      <div id="pairings-list" class="pairings-list" aria-labelledby="pairings-label"></div>
+      <button type="button" id="add-pairing-btn" class="btn ghost small">＋ Add system</button>
+      <datalist id="system-options"></datalist>
+    </div>
+    <div class="field">
       <label for="f-photo">Photo of device / box (optional)</label>
       <input id="f-photo" type="file" accept="image/*" capture="environment">
       <img id="f-photo-preview" class="photo-preview hidden">
@@ -98,7 +118,7 @@
 
   <section class="card">
     <h2>Saved devices <span id="count-badge" class="badge">0</span></h2>
-    <input id="filter-input" type="search" placeholder="Filter by name, room or notes...">
+    <input id="filter-input" type="search" placeholder="Filter by name, room, notes or system...">
     <div class="print-controls">
       <select id="print-room-select">
         <option value="">Print: all rooms</option>

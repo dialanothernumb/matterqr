@@ -36,6 +36,36 @@ if (!existingCols.includes('manual_pairing_code')) {
 if (!existingCols.includes('device_details')) {
   db.exec('ALTER TABLE devices ADD COLUMN device_details TEXT');
 }
+if (!existingCols.includes('pairings')) {
+  db.exec('ALTER TABLE devices ADD COLUMN pairings TEXT');
+}
+
+// Smart-home systems a device has been added to (Matter multi-admin, or a
+// bridge). Stored as a JSON array on the device row:
+// [{ system, code, date, notes }] — all strings, all but system optional.
+const MAX_PAIRINGS = 20;
+const MAX_PAIRING_FIELD = 200;
+
+function cleanPairings(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((p) => p && typeof p === 'object')
+    .map((p) => {
+      const field = (v) => (typeof v === 'string' ? v.trim().slice(0, MAX_PAIRING_FIELD) : '');
+      return { system: field(p.system), code: field(p.code), date: field(p.date), notes: field(p.notes) };
+    })
+    .filter((p) => p.system)
+    .slice(0, MAX_PAIRINGS);
+}
+
+function parsePairings(text) {
+  if (!text) return [];
+  try {
+    return cleanPairings(JSON.parse(text));
+  } catch (err) {
+    return [];
+  }
+}
 
 // Built-in device details options, always offered in the dropdown even
 // before any device has used them. Anything a user types that isn't in
@@ -63,6 +93,7 @@ function rowToDevice(row) {
     room: row.room,
     notes: row.notes,
     manualPairingCode: row.manual_pairing_code,
+    pairings: parsePairings(row.pairings),
     photoUrl: row.photo_filename ? `/photos/${row.photo_filename}` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -104,15 +135,15 @@ app.get('/api/device-details', (req, res) => {
 });
 
 app.post('/api/devices', (req, res) => {
-  const { qrContent, deviceName, deviceDetails, room, notes, manualPairingCode, photoDataUrl } = req.body || {};
+  const { qrContent, deviceName, deviceDetails, room, notes, manualPairingCode, photoDataUrl, pairings } = req.body || {};
   if (!qrContent && !manualPairingCode) {
     return res.status(400).json({ error: 'either qrContent or manualPairingCode is required' });
   }
   const photoFilename = savePhoto(photoDataUrl);
   const info = db.prepare(`
-    INSERT INTO devices (qr_content, device_name, device_details, room, notes, manual_pairing_code, photo_filename)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(qrContent || '', deviceName || 'Unnamed device', deviceDetails || null, room || null, notes || null, manualPairingCode || null, photoFilename);
+    INSERT INTO devices (qr_content, device_name, device_details, room, notes, manual_pairing_code, photo_filename, pairings)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(qrContent || '', deviceName || 'Unnamed device', deviceDetails || null, room || null, notes || null, manualPairingCode || null, photoFilename, JSON.stringify(cleanPairings(pairings)));
   const row = db.prepare('SELECT * FROM devices WHERE id = ?').get(info.lastInsertRowid);
   res.status(201).json(rowToDevice(row));
   gdrive.runBackup(db, DATA_DIR).catch((err) => console.error('Drive backup failed:', err.message));
@@ -122,7 +153,7 @@ app.put('/api/devices/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM devices WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
 
-  const { qrContent, deviceName, deviceDetails, room, notes, manualPairingCode, photoDataUrl, removePhoto } = req.body || {};
+  const { qrContent, deviceName, deviceDetails, room, notes, manualPairingCode, photoDataUrl, removePhoto, pairings } = req.body || {};
   if (!qrContent && !manualPairingCode) {
     return res.status(400).json({ error: 'either qrContent or manualPairingCode is required' });
   }
@@ -136,12 +167,16 @@ app.put('/api/devices/:id', (req, res) => {
     photoFilename = null;
   }
 
+  // A client that doesn't send pairings (e.g. an older cached page) keeps
+  // whatever is already stored rather than wiping it.
+  const pairingsJson = pairings === undefined ? existing.pairings : JSON.stringify(cleanPairings(pairings));
+
   db.prepare(`
     UPDATE devices
     SET qr_content = ?, device_name = ?, device_details = ?, room = ?, notes = ?, manual_pairing_code = ?, photo_filename = ?,
-        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        pairings = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
     WHERE id = ?
-  `).run(qrContent || '', deviceName || 'Unnamed device', deviceDetails || null, room || null, notes || null, manualPairingCode || null, photoFilename, req.params.id);
+  `).run(qrContent || '', deviceName || 'Unnamed device', deviceDetails || null, room || null, notes || null, manualPairingCode || null, photoFilename, pairingsJson, req.params.id);
 
   const row = db.prepare('SELECT * FROM devices WHERE id = ?').get(req.params.id);
   res.json(rowToDevice(row));
